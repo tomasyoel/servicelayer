@@ -1,0 +1,44 @@
+name: Pattern Optimization Test
+
+on: [push]
+
+jobs:
+  test-service-layer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Run Benchmark
+        run: |
+          echo "Testing Service Layer Pattern Optimization..."
+          python -c "
+          from timeit import timeit
+          from service_layer_example import BankAccount, TransferService
+          
+          # Test performance
+          a = BankAccount('A', 1000)
+          b = BankAccount('B', 1000)
+          
+          time = timeit(
+              lambda: TransferService.transfer(a, b, 100),
+              number=10000
+          )
+          print(f'Service Layer throughput: {10000/time:.0f} ops/sec')
+          "
+      
+      - name: Verify Decoupling
+        run: |
+          python -c "
+          from service_layer_example import TransferService, AccountRepository
+          
+          # Test flexibility
+          a = AccountRepository.find('X')
+          b = AccountRepository.find('Y')
+          assert TransferService.transfer(a, b, 100) is True
+          print('✅ Service Layer correctly decouples business logic!')
+          "
