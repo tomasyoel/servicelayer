@@ -1,0 +1,65 @@
+name: Service Layer Benchmark
+
+on: [push, workflow_dispatch]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Run Performance Test
+        run: |
+          echo "=== SERVICE LAYER BENCHMARK ==="
+          python -c "
+          from timeit import timeit
+          from service_layer import BankAccount, TransferService
+          
+          # Test setup
+          source = BankAccount('A', 100000)  # Large balance
+          target = BankAccount('B', 0)
+          amount = 100
+          
+          # Benchmark
+          def test_transfer():
+              TransferService.transfer(source, target, amount)
+          
+          iterations = 10000
+          time = timeit(test_transfer, number=iterations)
+          
+          print(f'Transfer operations: {iterations}')
+          print(f'Total time: {time:.3f} seconds')
+          print(f'Throughput: {iterations/time:.0f} ops/sec')
+          print(f'Avg latency: {(time/iterations)*1000:.3f} ms')
+          "
+      
+      - name: Validate Business Logic
+        run: |
+          echo "=== BUSINESS LOGIC VALIDATION ==="
+          python -c "
+          from service_layer import TransferService, AccountRepository
+          
+          # Test 1: Normal transfer
+          acc1 = AccountRepository.find('X', 500)
+          acc2 = AccountRepository.find('Y', 100)
+          assert TransferService.transfer(acc1, acc2, 200)
+          print('✅ Standard transfer works')
+          
+          # Test 2: Insufficient funds
+          poor = AccountRepository.find('P', 50)
+          rich = AccountRepository.find('R', 1000)
+          assert not TransferService.transfer(poor, rich, 100)
+          print('✅ Insufficient funds handled')
+          
+          # Test 3: Max attempts
+          limited = AccountRepository.find('L', 10)
+          attempts = 0
+          while TransferService.transfer(limited, rich, 1):
+              attempts += 1
+          print(f'✅ Max attempts respected: {attempts <= TransferService.MAX_ATTEMPTS}')
+          "
